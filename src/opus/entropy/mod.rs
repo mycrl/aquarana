@@ -134,18 +134,18 @@ impl<'a> RangeCodingDecoder<'a> {
     }
 
     /// Decoding based on iCDF tables (Opus method)
-    pub fn icdf(&mut self, icdf: &ICDFContext) -> usize {
-        let (range_scale, symbol_index) = self.get_scale_symbol(icdf.total);
+    pub fn icdf(&mut self, total: usize, dict: &[usize]) -> usize {
+        let (range_scale, symbol_index) = self.get_scale_symbol(total);
 
         // Determine the probability interval corresponding to the current
         // symbol and then update the decoder state
-        let value = icdf.dist.iter().position(|v| *v > symbol_index).unwrap();
+        let value = dict.iter().position(|v| *v > symbol_index).unwrap();
 
         self.update_range_and_value(
             range_scale,
-            if value > 0 { icdf.dist[value - 1] } else { 0 },
-            icdf.dist[value],
-            icdf.total,
+            if value > 0 { dict[value - 1] } else { 0 },
+            dict[value],
+            total,
         );
 
         value
@@ -342,12 +342,6 @@ impl<'a> CeltRangeCoding for RangeCodingDecoder<'a> {
     fn to_end(&mut self) {
         self.consumed_bits += self.bitstream_length - self.tell();
     }
-}
-
-#[derive(Debug)]
-pub struct ICDFContext {
-    pub total: usize,
-    pub dist: &'static [usize],
 }
 
 #[cfg(test)]
