@@ -1,6 +1,5 @@
 pub mod celt;
 pub mod entropy;
-pub mod silk;
 pub mod toc;
 
 use bytes::Buf;
@@ -110,7 +109,23 @@ impl OpusPacket {
                 }
 
                 if has_padding {
-                    todo!("miss padding / LBRR check");
+                    let mut padding_len = 0;
+
+                    loop {
+                        let byte = bytes.get_u8() as usize;
+                        if byte > u32::MAX as usize - 255 {
+                            return Err(OpusPacketDecodeError::InvalidData);
+                        }
+
+                        padding_len += byte;
+                        if byte < 255 {
+                            break;
+                        } else {
+                            padding_len -= 1;
+                        }
+                    }
+
+                    bytes = &bytes[..bytes.len() - padding_len];
                 }
 
                 if is_vbr {

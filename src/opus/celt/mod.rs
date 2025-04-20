@@ -1,7 +1,5 @@
 use super::toc::{Bandwidth, EncodeMode, TableOfContents};
 
-pub mod mdct;
-
 pub trait CeltBandwidthBand {
     fn band(&self) -> usize;
 }
