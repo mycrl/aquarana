@@ -5,10 +5,7 @@ pub mod toc;
 
 use bytes::Buf;
 
-use self::{
-    entropy::RangeCodingDecoder,
-    toc::{EncodeMode, FrameCode, TableOfContents},
-};
+use self::toc::{EncodeMode, FrameCode, TableOfContents};
 
 #[derive(Debug)]
 pub struct OpusFrame {}
@@ -16,7 +13,6 @@ pub struct OpusFrame {}
 impl OpusFrame {
     pub fn deocde(toc: &TableOfContents, bytes: &[u8]) {
         if toc.mode == EncodeMode::CELT {
-            let range_dec = RangeCodingDecoder::new(bytes);
         } else {
             todo!("Only CELT is supported");
         }
