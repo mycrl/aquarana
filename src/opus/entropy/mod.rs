@@ -1,8 +1,8 @@
-pub mod bits;
+pub mod bit_reader;
 
 use integer_sqrt::IntegerSquareRoot;
 
-use self::bits::{LittleEndianBitReader, BigEndianBitReader};
+use self::bit_reader::{BigEndianBitReader, LittleEndianBitReader};
 
 /// Probability distribution coding, suitable for audio coding scenarios because
 /// audio is all continuously varying data with continuous spectral lines, not

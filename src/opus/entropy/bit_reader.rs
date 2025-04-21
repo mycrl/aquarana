@@ -170,7 +170,7 @@ impl<'a> LittleEndianBitReader<'a> {
 
 #[cfg(test)]
 mod test {
-    use super::{LittleEndianBitReader, BigEndianBitReader};
+    use super::{BigEndianBitReader, LittleEndianBitReader};
 
     #[test]
     fn reverse_bitread() {
@@ -226,29 +226,29 @@ mod test {
     }
 
     #[test]
-fn unpadded_bitread() {
-    let buf = &[
-        0b11010110, // 0xD6
-        0b00101101, // 0x2D
-        0b11100011, // 0xE3
-        0b01010101, // 0x55
-        0b10101010, // 0xAA
-        0b00011100, // 0x1C
-        0b11110000, // 0xF0
-        0b00000001, // 0x01
-    ];
+    fn unpadded_bitread() {
+        let buf = &[
+            0b11010110, // 0xD6
+            0b00101101, // 0x2D
+            0b11100011, // 0xE3
+            0b01010101, // 0x55
+            0b10101010, // 0xAA
+            0b00011100, // 0x1C
+            0b11110000, // 0xF0
+            0b00000001, // 0x01
+        ];
 
-    let mut r = BigEndianBitReader::new(buf);
+        let mut r = BigEndianBitReader::new(buf);
 
-    assert_eq!(r.get_bits_32(4), 0b1101);
-    assert_eq!(r.get_bits_32(4), 0b0110);
-    assert_eq!(r.get_bits_32(8), 0b00101101);
-    assert_eq!(r.get_bits_32(6), 0b111000);
-    assert_eq!(r.get_bits_32(2), 0b11);
-    assert_eq!(r.get_bits_32(8), 0b01010101);
-    assert_eq!(r.get_bits_32(8), 0b10101010);
-    assert_eq!(r.get_bits_32(8), 0b00011100);
-    assert_eq!(r.get_bits_32(8), 0b11110000);
-    assert_eq!(r.get_bits_32(8), 0b00000001);
-}
+        assert_eq!(r.get_bits_32(4), 0b1101);
+        assert_eq!(r.get_bits_32(4), 0b0110);
+        assert_eq!(r.get_bits_32(8), 0b00101101);
+        assert_eq!(r.get_bits_32(6), 0b111000);
+        assert_eq!(r.get_bits_32(2), 0b11);
+        assert_eq!(r.get_bits_32(8), 0b01010101);
+        assert_eq!(r.get_bits_32(8), 0b10101010);
+        assert_eq!(r.get_bits_32(8), 0b00011100);
+        assert_eq!(r.get_bits_32(8), 0b11110000);
+        assert_eq!(r.get_bits_32(8), 0b00000001);
+    }
 }

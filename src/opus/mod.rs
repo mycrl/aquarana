@@ -3,18 +3,49 @@ pub mod entropy;
 pub mod toc;
 
 use bytes::Buf;
+use celt::{CeltFrame, CeltFrameDecodeError};
+use entropy::RangeCodingDecoder;
 
 use self::toc::{EncodeMode, FrameCode, TableOfContents};
 
 #[derive(Debug)]
 pub struct OpusFrame {}
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum OpusFrameDecoderError {
+    Celt(CeltFrameDecodeError),
+}
+
+impl From<CeltFrameDecodeError> for OpusFrameDecoderError {
+    fn from(value: CeltFrameDecodeError) -> Self {
+        Self::Celt(value)
+    }
+}
+
 impl OpusFrame {
-    pub fn deocde(toc: &TableOfContents, bytes: &[u8]) {
+    pub fn deocde(toc: &TableOfContents, bytes: &[u8]) -> Result<Self, OpusFrameDecoderError> {
+        let mut range_dec = RangeCodingDecoder::new(bytes);
+
+        let consumed = range_dec.tell();
+        let has_redundancy = if toc.mode == EncodeMode::Hybrid && consumed + 37 <= bytes.len() * 8 {
+            range_dec.logp(12)
+        } else if toc.mode == EncodeMode::SILK && consumed + 17 <= bytes.len() * 8 {
+            true
+        } else {
+            false
+        };
+
+        if has_redundancy {
+            todo!("skip redundancy info");
+        }
+
         if toc.mode == EncodeMode::CELT {
+            CeltFrame::decode(toc, &mut range_dec)?;
         } else {
             todo!("Only CELT is supported");
         }
+
+        Ok(Self {})
     }
 }
 
@@ -28,6 +59,13 @@ pub struct OpusPacket {
 pub enum OpusPacketDecodeError {
     InvalidData,
     FramesOverflow,
+    FrameDecodeError(OpusFrameDecoderError),
+}
+
+impl From<OpusFrameDecoderError> for OpusPacketDecodeError {
+    fn from(value: OpusFrameDecoderError) -> Self {
+        Self::FrameDecodeError(value)
+    }
 }
 
 impl OpusPacket {
@@ -162,7 +200,10 @@ impl OpusPacket {
             }
         };
 
-        let frames = Vec::new();
+        let mut frames = Vec::with_capacity(datas.len());
+        for data in datas {
+            frames.push(OpusFrame::deocde(&toc, data)?);
+        }
 
         Ok(Self { toc, frames })
     }
