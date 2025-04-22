@@ -5,6 +5,17 @@ pub enum EncodeMode {
     Hybrid,
 }
 
+impl From<u8> for EncodeMode {
+    fn from(value: u8) -> Self {
+        match (value >> 3) & 0x1F {
+            0..=11 => Self::SILK,
+            12..=15 => Self::Hybrid,
+            16..=31 => Self::CELT,
+            _ => unreachable!(),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Bandwidth {
     Narrow = 8000,
@@ -14,12 +25,37 @@ pub enum Bandwidth {
     Full = 48000,
 }
 
+impl From<u8> for Bandwidth {
+    fn from(value: u8) -> Self {
+        match (value >> 3) & 0x1F {
+            4..=7 => Self::Medium,
+            0..=3 | 16..=19 => Self::Narrow,
+            8..=11 | 20..=23 => Self::Wide,
+            14..=15 | 28..=31 => Self::Full,
+            12..=13 | 24..=27 => Self::SuperWide,
+            _ => unreachable!(),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FrameCode {
     Single,
     DoubleCBR,
     DoubleVBR,
     Multiple,
+}
+
+impl From<u8> for FrameCode {
+    fn from(value: u8) -> Self {
+        match value & 0x03 {
+            0 => FrameCode::Single,
+            1 => FrameCode::DoubleCBR,
+            2 => FrameCode::DoubleVBR,
+            3 => FrameCode::Multiple,
+            _ => unreachable!(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -36,6 +72,49 @@ pub enum FrameDuration {
     Long = 1920,
     /// 60ms
     VeryLong = 2880,
+}
+
+impl From<u8> for FrameDuration {
+    fn from(value: u8) -> Self {
+        match (value >> 3) & 0x1F {
+            v @ 0..=11 => match v & 0b11 {
+                0 => Self::Medium,
+                1 => Self::Standard,
+                2 => Self::Long,
+                3 => Self::VeryLong,
+                _ => unreachable!(),
+            },
+            v @ 12..=15 => match v & 0b1 {
+                0 => Self::Medium,
+                1 => Self::Standard,
+                _ => unreachable!(),
+            },
+            v @ 16..=31 => match v & 0b11 {
+                0 => Self::VeryShort,
+                1 => Self::Short,
+                2 => Self::Medium,
+                3 => Self::Standard,
+                _ => unreachable!(),
+            },
+            _ => unreachable!(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Channel {
+    Mono,
+    Stereo,
+}
+
+impl From<u8> for Channel {
+    fn from(value: u8) -> Self {
+        if value >> 2 & 0x01 == 1 {
+            Self::Stereo
+        } else {
+            Self::Mono
+        }
+    }
 }
 
 /// Each opus packet begins with a TOC byte.
@@ -78,213 +157,18 @@ pub struct TableOfContents {
     pub mode: EncodeMode,
     pub bandwidth: Bandwidth,
     pub duration: FrameDuration,
+    pub channel: Channel,
     pub code: FrameCode,
 }
 
-impl TableOfContents {
-    pub fn decode(toc: u8) -> Self {
-        let code = match toc & 0b00000011 {
-            0b00 => FrameCode::Single,
-            0b01 => FrameCode::DoubleCBR,
-            0b10 => FrameCode::DoubleVBR,
-            0b11 => FrameCode::Multiple,
-            _ => unreachable!(),
-        };
-
-        match (toc >> 3) & 0b0001_1111 {
-            0 => Self {
-                mode: EncodeMode::SILK,
-                bandwidth: Bandwidth::Narrow,
-                duration: FrameDuration::Medium,
-                code,
-            },
-            1 => Self {
-                mode: EncodeMode::SILK,
-                bandwidth: Bandwidth::Narrow,
-                duration: FrameDuration::Standard,
-                code,
-            },
-            2 => Self {
-                mode: EncodeMode::SILK,
-                bandwidth: Bandwidth::Narrow,
-                duration: FrameDuration::Long,
-                code,
-            },
-            3 => Self {
-                mode: EncodeMode::SILK,
-                bandwidth: Bandwidth::Narrow,
-                duration: FrameDuration::VeryLong,
-                code,
-            },
-            4 => Self {
-                mode: EncodeMode::SILK,
-                bandwidth: Bandwidth::Medium,
-                duration: FrameDuration::Medium,
-                code,
-            },
-            5 => Self {
-                mode: EncodeMode::SILK,
-                bandwidth: Bandwidth::Medium,
-                duration: FrameDuration::Standard,
-                code,
-            },
-            6 => Self {
-                mode: EncodeMode::SILK,
-                bandwidth: Bandwidth::Medium,
-                duration: FrameDuration::Long,
-                code,
-            },
-            7 => Self {
-                mode: EncodeMode::SILK,
-                bandwidth: Bandwidth::Medium,
-                duration: FrameDuration::VeryLong,
-                code,
-            },
-            8 => Self {
-                mode: EncodeMode::SILK,
-                bandwidth: Bandwidth::Wide,
-                duration: FrameDuration::Medium,
-                code,
-            },
-            9 => Self {
-                mode: EncodeMode::SILK,
-                bandwidth: Bandwidth::Wide,
-                duration: FrameDuration::Standard,
-                code,
-            },
-            10 => Self {
-                mode: EncodeMode::SILK,
-                bandwidth: Bandwidth::Wide,
-                duration: FrameDuration::Long,
-                code,
-            },
-            11 => Self {
-                mode: EncodeMode::SILK,
-                bandwidth: Bandwidth::Wide,
-                duration: FrameDuration::VeryLong,
-                code,
-            },
-            12 => Self {
-                mode: EncodeMode::Hybrid,
-                bandwidth: Bandwidth::SuperWide,
-                duration: FrameDuration::Medium,
-                code,
-            },
-            13 => Self {
-                mode: EncodeMode::Hybrid,
-                bandwidth: Bandwidth::SuperWide,
-                duration: FrameDuration::Standard,
-                code,
-            },
-            14 => Self {
-                mode: EncodeMode::Hybrid,
-                bandwidth: Bandwidth::Full,
-                duration: FrameDuration::Medium,
-                code,
-            },
-            15 => Self {
-                mode: EncodeMode::Hybrid,
-                bandwidth: Bandwidth::Full,
-                duration: FrameDuration::Standard,
-                code,
-            },
-            16 => Self {
-                mode: EncodeMode::CELT,
-                bandwidth: Bandwidth::Narrow,
-                duration: FrameDuration::VeryShort,
-                code,
-            },
-            17 => Self {
-                mode: EncodeMode::CELT,
-                bandwidth: Bandwidth::Narrow,
-                duration: FrameDuration::Short,
-                code,
-            },
-            18 => Self {
-                mode: EncodeMode::CELT,
-                bandwidth: Bandwidth::Narrow,
-                duration: FrameDuration::Medium,
-                code,
-            },
-            19 => Self {
-                mode: EncodeMode::CELT,
-                bandwidth: Bandwidth::Narrow,
-                duration: FrameDuration::Standard,
-                code,
-            },
-            20 => Self {
-                mode: EncodeMode::CELT,
-                bandwidth: Bandwidth::Wide,
-                duration: FrameDuration::VeryShort,
-                code,
-            },
-            21 => Self {
-                mode: EncodeMode::CELT,
-                bandwidth: Bandwidth::Wide,
-                duration: FrameDuration::Short,
-                code,
-            },
-            22 => Self {
-                mode: EncodeMode::CELT,
-                bandwidth: Bandwidth::Wide,
-                duration: FrameDuration::Medium,
-                code,
-            },
-            23 => Self {
-                mode: EncodeMode::CELT,
-                bandwidth: Bandwidth::Wide,
-                duration: FrameDuration::Standard,
-                code,
-            },
-            24 => Self {
-                mode: EncodeMode::CELT,
-                bandwidth: Bandwidth::SuperWide,
-                duration: FrameDuration::VeryShort,
-                code,
-            },
-            25 => Self {
-                mode: EncodeMode::CELT,
-                bandwidth: Bandwidth::SuperWide,
-                duration: FrameDuration::Short,
-                code,
-            },
-            26 => Self {
-                mode: EncodeMode::CELT,
-                bandwidth: Bandwidth::SuperWide,
-                duration: FrameDuration::Medium,
-                code,
-            },
-            27 => Self {
-                mode: EncodeMode::CELT,
-                bandwidth: Bandwidth::SuperWide,
-                duration: FrameDuration::Standard,
-                code,
-            },
-            28 => Self {
-                mode: EncodeMode::CELT,
-                bandwidth: Bandwidth::Full,
-                duration: FrameDuration::VeryShort,
-                code,
-            },
-            29 => Self {
-                mode: EncodeMode::CELT,
-                bandwidth: Bandwidth::Full,
-                duration: FrameDuration::Short,
-                code,
-            },
-            30 => Self {
-                mode: EncodeMode::CELT,
-                bandwidth: Bandwidth::Full,
-                duration: FrameDuration::Medium,
-                code,
-            },
-            31 => Self {
-                mode: EncodeMode::CELT,
-                bandwidth: Bandwidth::Full,
-                duration: FrameDuration::Standard,
-                code,
-            },
-            _ => unreachable!(),
+impl From<u8> for TableOfContents {
+    fn from(value: u8) -> Self {
+        Self {
+            mode: EncodeMode::from(value),
+            bandwidth: Bandwidth::from(value),
+            duration: FrameDuration::from(value),
+            channel: Channel::from(value),
+            code: FrameCode::from(value),
         }
     }
 }

@@ -6,7 +6,7 @@ use self::filter::PostFilter;
 
 use super::{
     entropy::RangeCodingDecoder,
-    toc::{Bandwidth, EncodeMode, TableOfContents},
+    toc::{Bandwidth, Channel, EncodeMode, TableOfContents},
 };
 
 pub trait CeltBandwidthBand {
@@ -73,30 +73,35 @@ impl CeltFrame {
 
         let mut post_filters = Vec::new();
         if has_silence {
-            todo!("padding silence data to pcm output")
-        } else {
-            // Parsing post-filter
-            //
-            // In the case of the low-frequency part, at least 16 bits of
-            // available bytes are needed to decode it.
-            if band_range.start == 0 && range_dec.available() >= 16 {
-                let has_postfilter = range_dec.logp(1);
-                if has_postfilter {
-                    post_filters = PostFilter::decode(range_dec);
-                }
+            range_dec.to_end();
+        }
+
+        // Parsing post-filter
+        //
+        // In the case of the low-frequency part, at least 16 bits of
+        // available bytes are needed to decode it.
+        if band_range.start == 0 && range_dec.available() >= 16 {
+            let has_postfilter = range_dec.logp(1);
+            if has_postfilter {
+                post_filters = PostFilter::decode(range_dec);
             }
         }
 
-        // The "transient" flag indicates whether the frame uses a single long 
-        // MDCT or several short MDCTs. When it is set, then the MDCT coefficients 
-        // represent multiple short MDCTs in the frame. When not set, the 
-        // coefficients represent a single long MDCT for the frame. The flag is 
+        // The "transient" flag indicates whether the frame uses a single long
+        // MDCT or several short MDCTs. When it is set, then the MDCT coefficients
+        // represent multiple short MDCTs in the frame. When not set, the
+        // coefficients represent a single long MDCT for the frame. The flag is
         // encoded in the bitstream with a probability of 1/8.
         let transient = if mdct_block_dur > 0 && range_dec.available() >= 3 {
             range_dec.logp(3)
         } else {
             false
         };
+
+        let blocks = if transient { 1 << mdct_block_dur } else { 1 } as usize;
+        let block_size = toc.duration as usize / blocks;
+
+        if toc.channel == Channel::Mono {}
 
         Ok(Self {})
     }

@@ -77,7 +77,7 @@ impl OpusPacket {
             return Err(OpusPacketDecodeError::InvalidData);
         }
 
-        let toc = TableOfContents::decode(bytes.get_u8());
+        let toc = TableOfContents::from(bytes.get_u8());
 
         let mut datas = Vec::with_capacity(10);
         match toc.code {
