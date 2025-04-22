@@ -1,5 +1,6 @@
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub enum EncodeMode {
+    #[default]
     CELT,
     SILK,
     Hybrid,
@@ -16,8 +17,9 @@ impl From<u8> for EncodeMode {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub enum Bandwidth {
+    #[default]
     Narrow = 8000,
     Medium = 12000,
     Wide = 16000,
@@ -38,8 +40,9 @@ impl From<u8> for Bandwidth {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub enum FrameCode {
+    #[default]
     Single,
     DoubleCBR,
     DoubleVBR,
@@ -58,9 +61,10 @@ impl From<u8> for FrameCode {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub enum FrameDuration {
     /// 2.5ms
+    #[default]
     VeryShort = 120,
     /// 5ms
     Short = 240,
@@ -101,10 +105,11 @@ impl From<u8> for FrameDuration {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub enum Channel {
-    Mono,
-    Stereo,
+    #[default]
+    Mono = 1,
+    Stereo = 2,
 }
 
 impl From<u8> for Channel {
@@ -152,7 +157,7 @@ impl From<u8> for Channel {
 /// * There are two frames of audio in a packet, but of different sizes.
 /// * There are any frames in a packet.
 ///
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Default, Clone, Copy)]
 pub struct TableOfContents {
     pub mode: EncodeMode,
     pub bandwidth: Bandwidth,
