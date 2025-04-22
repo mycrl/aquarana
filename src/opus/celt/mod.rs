@@ -25,7 +25,22 @@ impl CeltBandwidthBand for Bandwidth {
     }
 }
 
-pub struct CeltFrame {}
+#[derive(Debug, Default)]
+pub struct CeltBlock {
+    pub post_filter: PostFilter,
+    pub energy: [f32; CeltFrame::MAX_BANDS],
+    pub lin_energy: [f32; CeltFrame::MAX_BANDS],
+    pub prev_energy: [f32; CeltFrame::MAX_BANDS],
+}
+
+#[derive(Debug, Default)]
+pub struct CeltFrame {
+    pub block: [CeltBlock; 2],
+    pub blocks: usize,
+    pub block_size: usize,
+    pub has_silence: bool,
+    pub transient: bool,
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CeltFrameDecodeError {
@@ -37,6 +52,7 @@ impl CeltFrame {
     const SHORT_BLOCKSIZE: usize = 120;
 
     pub fn decode(
+        &mut self,
         toc: &TableOfContents,
         range_dec: &mut RangeCodingDecoder,
     ) -> Result<Self, CeltFrameDecodeError> {
@@ -62,7 +78,7 @@ impl CeltFrame {
         // if there are none then the whole frame is silent. If there are no bits
         // left to read, the frame is silent. If there are no bits left to read,
         // the frame is empty or the packet is lost.
-        let has_silence = if range_dec.available() > 0 {
+        self.has_silence = if range_dec.available() > 0 {
             // Because little mute is uncommon in audio, it is encoded here as a
             // probability, indicating a large probability that it is not muted
             // and only a small probability that it is.
@@ -71,8 +87,7 @@ impl CeltFrame {
             true
         };
 
-        let mut post_filters = Vec::new();
-        if has_silence {
+        if self.has_silence {
             range_dec.to_end();
         }
 
@@ -83,7 +98,11 @@ impl CeltFrame {
         if band_range.start == 0 && range_dec.available() >= 16 {
             let has_postfilter = range_dec.logp(1);
             if has_postfilter {
-                post_filters = PostFilter::decode(range_dec);
+                let post_filter = PostFilter::decode(range_dec);
+
+                self.block.iter_mut().for_each(|it| {
+                    it.post_filter = post_filter;
+                });
             }
         }
 
@@ -92,17 +111,26 @@ impl CeltFrame {
         // represent multiple short MDCTs in the frame. When not set, the
         // coefficients represent a single long MDCT for the frame. The flag is
         // encoded in the bitstream with a probability of 1/8.
-        let transient = if mdct_block_dur > 0 && range_dec.available() >= 3 {
+        self.transient = if mdct_block_dur > 0 && range_dec.available() >= 3 {
             range_dec.logp(3)
         } else {
             false
         };
 
-        let blocks = if transient { 1 << mdct_block_dur } else { 1 } as usize;
-        let block_size = toc.duration as usize / blocks;
+        self.blocks = if self.transient { 1 << mdct_block_dur } else { 1 } as usize;
+        self.block_size = toc.duration as usize / self.blocks;
 
-        if toc.channel == Channel::Mono {}
+        if toc.channel == Channel::Mono {
+            for i in 0..Self::MAX_BANDS {
+                self.block[0].energy[i] = self.block[0].energy[i].max(self.block[1].energy[i]);
+            }
+        }
 
-        Ok(Self {})
+        // coarse energy
+        {
+            
+        }
+
+        todo!()
     }
 }

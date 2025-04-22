@@ -14,18 +14,18 @@ fn main() {
     let packet = reader.read_packet().unwrap().unwrap();
     println!(
         "opus head = {:#?}",
-        OggOpusHead::decode(&packet.data).unwrap()
+        OggOpusHead::try_from(packet.data.as_slice()).unwrap()
     );
 
     let packet = reader.read_packet().unwrap().unwrap();
     println!(
         "opus tags = {:#?}",
-        OggOpusTags::decode(&packet.data).unwrap()
+        OggOpusTags::try_from(packet.data.as_slice()).unwrap()
     );
 
     let packet = reader.read_packet().unwrap().unwrap();
     println!(
         "opus packet = {:#?}",
-        OpusPacket::decode(&packet.data).unwrap()
+        OpusPacket::decode(packet.data.as_slice()).unwrap()
     );
 }

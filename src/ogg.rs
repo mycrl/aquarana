@@ -27,8 +27,10 @@ pub enum OggOpusHeadDecodeError {
     UnexpectedVersionNumber(u8),
 }
 
-impl OggOpusHead {
-    pub fn decode(mut bytes: &[u8]) -> Result<Self, OggOpusHeadDecodeError> {
+impl TryFrom<&[u8]> for OggOpusHead {
+    type Error = OggOpusHeadDecodeError;
+
+    fn try_from(mut bytes: &[u8]) -> Result<Self, Self::Error> {
         if bytes.len() < 19 {
             return Err(OggOpusHeadDecodeError::InvalidData);
         }
@@ -88,8 +90,10 @@ pub enum OggOpusTagsDecodeError {
     NonUTF8,
 }
 
-impl<'a> OggOpusTags<'a> {
-    pub fn decode(mut bytes: &'a [u8]) -> Result<Self, OggOpusTagsDecodeError> {
+impl<'a> TryFrom<&'a [u8]> for OggOpusTags<'a> {
+    type Error = OggOpusTagsDecodeError;
+
+    fn try_from(mut bytes: &'a [u8]) -> Result<Self, Self::Error> {
         if bytes.len() < 12 {
             return Err(OggOpusTagsDecodeError::InvalidData);
         }

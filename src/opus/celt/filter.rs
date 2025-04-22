@@ -1,9 +1,9 @@
 use crate::opus::entropy::{CeltRangeCoding, RangeCodingDecoder};
 
-#[derive(Debug)]
+#[derive(Debug, Default, Clone, Copy)]
 pub struct PostFilter {
-    period_new: usize,
-    gains_new: [f32; 3],
+    pub period_new: usize,
+    pub gains_new: [f32; 3],
 }
 
 impl PostFilter {
@@ -28,7 +28,7 @@ impl PostFilter {
         [0.7998046875, 0.1000976562, 0.0],
     ];
 
-    pub fn decode(range_dec: &mut RangeCodingDecoder) -> Vec<Self> {
+    pub fn decode(range_dec: &mut RangeCodingDecoder) -> Self {
         // Octaves are decoded as integer values ​​between 0 and 6 with uniform
         // probability.
         let octave = range_dec.uniform(6);
@@ -48,21 +48,16 @@ impl PostFilter {
             0
         };
 
-        let mut filters = Vec::with_capacity(2);
-        for _ in 0..2 {
-            filters.push(PostFilter {
-                period_new: period.max(Self::POSTFILTER_MINPERIOD),
-                gains_new: {
-                    let mut gains = [0.0, 0.0, 0.0];
-                    for i in 0..3 {
-                        gains[i] = gain * Self::TAPS[tapset][i];
-                    }
+        Self {
+            period_new: period.max(Self::POSTFILTER_MINPERIOD),
+            gains_new: {
+                let mut gains = [0.0, 0.0, 0.0];
+                for i in 0..3 {
+                    gains[i] = gain * Self::TAPS[tapset][i];
+                }
 
-                    gains
-                },
-            });
+                gains
+            },
         }
-
-        filters
     }
 }
