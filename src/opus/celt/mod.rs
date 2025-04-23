@@ -1,11 +1,15 @@
 mod coarse_energy;
 mod post_filter;
+mod time_frequency_change;
 
 use std::ops::Range;
 
 use crate::opus::entropy::CeltRangeCoding;
 
-use self::{coarse_energy::CoarseEnergy, post_filter::PostFilter};
+use self::{
+    coarse_energy::CoarseEnergy, post_filter::PostFilter,
+    time_frequency_change::TimeFrequencyChange,
+};
 
 use super::{
     entropy::RangeCodingDecoder,
@@ -33,10 +37,10 @@ impl CeltBandwidthBand for Bandwidth {
 
 #[derive(Debug, Default)]
 pub struct CeltBlock {
-    pub post_filter: PostFilter,
-    pub energy: [f32; MAX_BANDS],
-    pub lin_energy: [f32; MAX_BANDS],
-    pub prev_energy: [f32; MAX_BANDS],
+    post_filter: PostFilter,
+    energy: [f32; MAX_BANDS],
+    lin_energy: [f32; MAX_BANDS],
+    prev_energy: [f32; MAX_BANDS],
 }
 
 #[derive(Debug, Default)]
@@ -46,6 +50,7 @@ pub struct CeltFrameDecoder {
     has_silence: bool,
     transient: bool,
     blocks: [CeltBlock; 2],
+    time_frequency_change: [i8; MAX_BANDS],
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -133,6 +138,9 @@ impl CeltFrameDecoder {
 
         // coarse energy
         CoarseEnergy::parse(toc, self, range_dec);
+
+        // time frequency change
+        TimeFrequencyChange::parse(self, range_dec);
 
         todo!()
     }

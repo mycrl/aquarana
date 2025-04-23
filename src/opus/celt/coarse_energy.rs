@@ -131,7 +131,7 @@ impl CoarseEnergy {
 
                 block.energy[band] =
                     -9.0f32.max(block.energy[band] * alpha + prev[channel] + value);
-                    
+
                 prev[channel] += beta * value;
             }
         }
