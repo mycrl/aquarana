@@ -106,13 +106,13 @@ impl From<u8> for FrameDuration {
 }
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
-pub enum Channel {
+pub enum Channels {
     #[default]
     Mono = 1,
     Stereo = 2,
 }
 
-impl From<u8> for Channel {
+impl From<u8> for Channels {
     fn from(value: u8) -> Self {
         if value >> 2 & 0x01 == 1 {
             Self::Stereo
@@ -162,7 +162,7 @@ pub struct TableOfContents {
     pub mode: EncodeMode,
     pub bandwidth: Bandwidth,
     pub duration: FrameDuration,
-    pub channel: Channel,
+    pub channels: Channels,
     pub code: FrameCode,
 }
 
@@ -172,7 +172,7 @@ impl From<u8> for TableOfContents {
             mode: EncodeMode::from(value),
             bandwidth: Bandwidth::from(value),
             duration: FrameDuration::from(value),
-            channel: Channel::from(value),
+            channels: Channels::from(value),
             code: FrameCode::from(value),
         }
     }

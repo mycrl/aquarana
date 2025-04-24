@@ -23,8 +23,7 @@ pub const TAPS: [[f32; 3]; 3] = [
     [0.7998046875, 0.1000976562, 0.0],
 ];
 
-pub const TAPSET_MODEL_TOTAL: usize = 4;
-pub const TAPSET_MODEL_DICT: [usize; 3] = [2, 3, 4];
+pub const TAPSET_MODEL_DICT: [usize; 4] = [4, 2, 3, 4];
 
 #[derive(Debug, Default, Clone, Copy)]
 pub struct PostFilter {
@@ -33,7 +32,7 @@ pub struct PostFilter {
 }
 
 impl PostFilter {
-    pub fn parse(dec: &mut CeltFrameDecoder, range_dec: &mut RangeCodingDecoder) {
+    pub fn decode(dec: &mut CeltFrameDecoder, range_dec: &mut RangeCodingDecoder) {
         // Octaves are decoded as integer values ​​between 0 and 6 with uniform
         // probability.
         let octave = range_dec.uniform(6);
@@ -48,7 +47,7 @@ impl PostFilter {
 
         // The set of post-filter taps is decoded last, using a pdf equal to {2, 1, 1} / 4.
         let tapset = if range_dec.available() >= 2 {
-            range_dec.icdf(TAPSET_MODEL_TOTAL, &TAPSET_MODEL_DICT)
+            range_dec.icdf(&TAPSET_MODEL_DICT)
         } else {
             0
         };

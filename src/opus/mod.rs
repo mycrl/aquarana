@@ -3,7 +3,7 @@ pub mod entropy;
 pub mod toc;
 
 use bytes::Buf;
-use celt::CeltFrameDecodeError;
+use celt::{CeltFrameDecodeError, CeltFrameDecoder};
 use entropy::RangeCodingDecoder;
 
 use self::toc::{EncodeMode, FrameCode, TableOfContents};
@@ -40,7 +40,10 @@ impl OpusFrame {
         }
 
         if toc.mode == EncodeMode::CELT {
-            // CeltFrame::default().decode(toc, &mut range_dec)?;
+            let mut dec = CeltFrameDecoder::default();
+            dec.decode(toc, &mut range_dec)?;
+
+            println!("{:?}", dec);
         } else {
             todo!("Only CELT is supported");
         }

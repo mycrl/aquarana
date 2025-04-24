@@ -17,9 +17,9 @@ pub const TF_SELECT: [[[[i8; 2]; 2]; 2]; 4] = [
 pub struct TimeFrequencyChange;
 
 impl TimeFrequencyChange {
-    pub fn parse(dec: &mut CeltFrameDecoder, range_dec: &mut RangeCodingDecoder) {
+    pub fn decode(dec: &mut CeltFrameDecoder, range_dec: &mut RangeCodingDecoder) {
         let mut bits = if dec.transient { 2 } else { 4 };
-        let select_bit = dec.mdct_block_dur != 0 && range_dec.available() > bits;
+        let select_bit = dec.size != 0 && range_dec.available() > bits;
 
         let mut diff = false;
         let mut change = false;
@@ -34,7 +34,7 @@ impl TimeFrequencyChange {
         }
 
         let change = change as usize;
-        let tf_select = TF_SELECT[dec.mdct_block_dur][dec.transient as usize];
+        let tf_select = TF_SELECT[dec.size][dec.transient as usize];
         let select = if select_bit && tf_select[0][change] != tf_select[1][change] {
             range_dec.logp(1) as usize
         } else {

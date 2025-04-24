@@ -1,12 +1,6 @@
-use crate::opus::{
-    entropy::{CeltRangeCoding, RangeCodingDecoder},
-    toc::TableOfContents,
-};
+use crate::opus::entropy::{CeltRangeCoding, RangeCodingDecoder};
 
-use super::{
-    CeltFrameDecoder, MAX_BANDS,
-    post_filter::{TAPSET_MODEL_DICT, TAPSET_MODEL_TOTAL},
-};
+use super::{CeltFrameDecoder, MAX_BANDS, post_filter::TAPSET_MODEL_DICT};
 
 pub const COARSE_ENERGY_DICT: [[[u8; 42]; 2]; 4] = [
     [
@@ -84,29 +78,25 @@ pub const BETA_COEF: [f32; 4] = [
 pub struct CoarseEnergy;
 
 impl CoarseEnergy {
-    pub fn parse(
-        toc: &TableOfContents,
-        dec: &mut CeltFrameDecoder,
-        range_dec: &mut RangeCodingDecoder,
-    ) {
+    pub fn decode(dec: &mut CeltFrameDecoder, range_dec: &mut RangeCodingDecoder) {
         let (alpha, beta, model) = if range_dec.available() > 3 && range_dec.logp(3) {
             // intra frame
             (
                 0.0f32,
                 1.0f32 - (4915.0f32 / 32768.0f32),
-                COARSE_ENERGY_DICT[dec.mdct_block_dur][1],
+                COARSE_ENERGY_DICT[dec.size][1],
             )
         } else {
             (
-                ALPHA_COEF[dec.mdct_block_dur],
-                BETA_COEF[dec.mdct_block_dur],
-                COARSE_ENERGY_DICT[dec.mdct_block_dur][0],
+                ALPHA_COEF[dec.size],
+                BETA_COEF[dec.size],
+                COARSE_ENERGY_DICT[dec.size][0],
             )
         };
 
         let mut prev = [0.0f32; 2];
         for band in 0..MAX_BANDS {
-            for channel in 0..toc.channel as usize {
+            for channel in 0..dec.channels as usize {
                 let block = &mut dec.blocks[channel];
 
                 if !dec.band_range.contains(&band) {
@@ -121,7 +111,7 @@ impl CoarseEnergy {
                     let idx = band.min(20) << 1;
                     range_dec.laplace((model[idx] << 7) as usize, (model[idx + 1] << 6) as isize)
                 } else if available >= 2 {
-                    let v = range_dec.icdf(TAPSET_MODEL_TOTAL, &TAPSET_MODEL_DICT) as isize;
+                    let v = range_dec.icdf(&TAPSET_MODEL_DICT) as isize;
                     (v >> 1) ^ -(v & 1)
                 } else if available >= 1 {
                     -(if range_dec.logp(1) { 1 } else { 0 })

@@ -134,7 +134,8 @@ impl<'a> RangeCodingDecoder<'a> {
     }
 
     /// Decoding based on iCDF tables (Opus method)
-    pub fn icdf(&mut self, total: usize, dict: &[usize]) -> usize {
+    pub fn icdf(&mut self, dict: &[usize]) -> usize {
+        let (total, dict) = (dict[0], &dict[1..]);
         let (range_scale, symbol_index) = self.get_scale_symbol(total);
 
         // Determine the probability interval corresponding to the current

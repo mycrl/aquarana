@@ -1,3 +1,4 @@
+mod bit_alloc;
 mod coarse_energy;
 mod post_filter;
 mod time_frequency_change;
@@ -7,17 +8,21 @@ use std::ops::Range;
 use crate::opus::entropy::CeltRangeCoding;
 
 use self::{
-    coarse_energy::CoarseEnergy, post_filter::PostFilter,
+    bit_alloc::{BitAlloc, Spread},
+    coarse_energy::CoarseEnergy,
+    post_filter::PostFilter,
     time_frequency_change::TimeFrequencyChange,
 };
 
 use super::{
     entropy::RangeCodingDecoder,
-    toc::{Bandwidth, Channel, EncodeMode, TableOfContents},
+    toc::{Bandwidth, Channels, EncodeMode, TableOfContents},
 };
 
 pub const MAX_BANDS: usize = 21;
 pub const SHORT_BLOCKSIZE: usize = 120;
+pub const MAX_LOG_BLOCKS: usize = 3;
+pub const MAX_FRAME_SIZE: usize = SHORT_BLOCKSIZE * (1 << MAX_LOG_BLOCKS);
 
 pub trait CeltBandwidthBand {
     fn band(&self) -> usize;
@@ -39,18 +44,23 @@ impl CeltBandwidthBand for Bandwidth {
 pub struct CeltBlock {
     post_filter: PostFilter,
     energy: [f32; MAX_BANDS],
-    lin_energy: [f32; MAX_BANDS],
-    prev_energy: [f32; MAX_BANDS],
+    // coeffs: [f32; MAX_FRAME_SIZE],
+    collapse_masks: [u8; 21],
 }
 
 #[derive(Debug, Default)]
 pub struct CeltFrameDecoder {
     band_range: Range<usize>,
-    mdct_block_dur: usize,
-    has_silence: bool,
+    size: usize,
+    silence: bool,
     transient: bool,
+    channels: Channels,
     blocks: [CeltBlock; 2],
     time_frequency_change: [i8; MAX_BANDS],
+    spread: Option<Spread>,
+    caps: [i32; MAX_BANDS],
+    alloc_trim: usize,
+    anticollapse_needed: usize,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -59,11 +69,13 @@ pub enum CeltFrameDecodeError {
 }
 
 impl CeltFrameDecoder {
-    pub fn parse(
+    pub fn decode(
         &mut self,
         toc: &TableOfContents,
         range_dec: &mut RangeCodingDecoder,
-    ) -> Result<Self, CeltFrameDecodeError> {
+    ) -> Result<(), CeltFrameDecodeError> {
+        self.channels = toc.channels;
+
         // In Hybrid mode, the Opus encoder has to deal specifically with the
         // high frequency part, so it chooses to start at band 17. In other
         // encoding modes, it starts from 0, covering lower frequency bands.
@@ -80,13 +92,13 @@ impl CeltFrameDecoder {
         // The mdct block is usually divided into several powers of 2 lengths,
         // first by calculating the length of the basic block, and then by
         // calculating the length of the mdct block from the basic block length.
-        self.mdct_block_dur = (toc.duration as usize / SHORT_BLOCKSIZE).ilog2() as usize;
+        self.size = (toc.duration as usize / SHORT_BLOCKSIZE).ilog2() as usize;
 
         // Whether or not there are any bits left in the decoder buffer to read,
         // if there are none then the whole frame is silent. If there are no bits
         // left to read, the frame is silent. If there are no bits left to read,
         // the frame is empty or the packet is lost.
-        self.has_silence = if range_dec.available() > 0 {
+        self.silence = if range_dec.available() > 0 {
             // Because little mute is uncommon in audio, it is encoded here as a
             // probability, indicating a large probability that it is not muted
             // and only a small probability that it is.
@@ -95,7 +107,7 @@ impl CeltFrameDecoder {
             true
         };
 
-        if self.has_silence {
+        if self.silence {
             range_dec.to_end();
         }
 
@@ -108,7 +120,7 @@ impl CeltFrameDecoder {
         if self.band_range.start == 0 && range_dec.available() >= 16 {
             let has_postfilter = range_dec.logp(1);
             if has_postfilter {
-                PostFilter::parse(self, range_dec);
+                PostFilter::decode(self, range_dec);
             }
         }
 
@@ -117,31 +129,30 @@ impl CeltFrameDecoder {
         // represent multiple short MDCTs in the frame. When not set, the
         // coefficients represent a single long MDCT for the frame. The flag is
         // encoded in the bitstream with a probability of 1/8.
-        self.transient = if self.mdct_block_dur > 0 && range_dec.available() >= 3 {
+        self.transient = if self.size > 0 && range_dec.available() >= 3 {
             range_dec.logp(3)
         } else {
             false
         };
 
-        let blocks = if self.transient {
-            1 << self.mdct_block_dur
-        } else {
-            1
-        } as usize;
+        let blocks = if self.transient { 1 << self.size } else { 1 } as usize;
         let block_size = toc.duration as usize / blocks;
 
-        if toc.channel == Channel::Mono {
+        if self.channels == Channels::Mono {
             for i in 0..MAX_BANDS {
                 block[0].energy[i] = block[0].energy[i].max(block[1].energy[i]);
             }
         }
 
         // coarse energy
-        CoarseEnergy::parse(toc, self, range_dec);
+        CoarseEnergy::decode(self, range_dec);
 
         // time frequency change
-        TimeFrequencyChange::parse(self, range_dec);
+        TimeFrequencyChange::decode(self, range_dec);
 
-        todo!()
+        // bit alloc
+        BitAlloc::decode(toc, self, range_dec);
+
+        Ok(())
     }
 }
