@@ -1,10 +1,7 @@
 use std::fs::File;
 
+use aquarana::{OggOpusHead, OggOpusTags, opus::OpusPacket};
 use ogg::reading::PacketReader;
-use opus_rs::{
-    ogg::{OggOpusHead, OggOpusTags},
-    opus::OpusPacket,
-};
 
 fn main() {
     let file = File::open("./demo.opus").unwrap();

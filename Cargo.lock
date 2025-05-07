@@ -3,6 +3,15 @@
 version = 4
 
 [[package]]
+name = "aquarana"
+version = "0.1.0"
+dependencies = [
+ "bytes",
+ "integer-sqrt",
+ "ogg",
+]
+
+[[package]]
 name = "autocfg"
 version = "1.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -45,13 +54,4 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fdab8dcd8d4052eaacaf8fb07a3ccd9a6e26efadb42878a413c68fc4af1dee2b"
 dependencies = [
  "byteorder",
-]
-
-[[package]]
-name = "opus-rs"
-version = "0.1.0"
-dependencies = [
- "bytes",
- "integer-sqrt",
- "ogg",
 ]

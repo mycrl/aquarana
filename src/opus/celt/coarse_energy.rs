@@ -1,7 +1,22 @@
+//! CELT coarse energy decoding implementation
+//! 
+//! This module implements the coarse energy decoding functionality for CELT 
+//! mode in Opus codec.
+//! 
+//! Coarse energy is used to represent the energy level of each frequency band, 
+//! which is an important parameter in CELT encoding process.
+
 use crate::opus::entropy::{CeltRangeCoding, RangeCodingDecoder};
 
 use super::{CeltFrameDecoder, MAX_BANDS, post_filter::TAPSET_MODEL_DICT};
 
+/// Coarse energy decoding dictionary table
+/// 
+/// The dictionary table is organized in the following dimensions:
+/// 
+/// - First dimension: Frame size index (0-3 corresponding to 120/240/480/960 samples)
+/// - Second dimension: Frame type (0: inter-frame, 1: intra-frame)
+/// - Third dimension: Parameter pairs for each frequency band (42 parameters)
 pub const COARSE_ENERGY_DICT: [[[u8; 42]; 2]; 4] = [
     [
         [
@@ -61,6 +76,10 @@ pub const COARSE_ENERGY_DICT: [[[u8; 42]; 2]; 4] = [
     ],
 ];
 
+/// Alpha coefficient for energy prediction
+/// 
+/// Used for inter-frame prediction energy smoothing, larger values indicate 
+/// stronger dependency on historical energy
 pub const ALPHA_COEF: [f32; 4] = [
     29440.0f32 / 32768.0f32,
     26112.0f32 / 32768.0f32,
@@ -68,6 +87,10 @@ pub const ALPHA_COEF: [f32; 4] = [
     16384.0f32 / 32768.0f32,
 ];
 
+/// Beta coefficient for energy prediction
+/// 
+/// Used for inter-frame prediction differential energy smoothing, larger 
+/// values indicate stronger dependency on current differential energy
 pub const BETA_COEF: [f32; 4] = [
     1.0f32 - (30147.0f32 / 32768.0f32),
     1.0f32 - (22282.0f32 / 32768.0f32),
@@ -75,18 +98,21 @@ pub const BETA_COEF: [f32; 4] = [
     1.0f32 - (6554.0f32 / 32768.0f32),
 ];
 
+/// Coarse energy decoder
 pub struct CoarseEnergy;
 
 impl CoarseEnergy {
     pub fn decode(dec: &mut CeltFrameDecoder, range_dec: &mut RangeCodingDecoder) {
+        // Select prediction parameters based on frame type
         let (alpha, beta, model) = if range_dec.available() > 3 && range_dec.logp(3) {
-            // intra frame
+            // Intra-frame prediction: no historical energy used, smaller beta
             (
                 0.0f32,
                 1.0f32 - (4915.0f32 / 32768.0f32),
                 COARSE_ENERGY_DICT[dec.size][1],
             )
         } else {
+            // Inter-frame prediction: using historical energy, larger alpha and beta
             (
                 ALPHA_COEF[dec.size],
                 BETA_COEF[dec.size],
@@ -94,34 +120,39 @@ impl CoarseEnergy {
             )
         };
 
-        let mut prev = [0.0f32; 2];
+        let mut prev = [0.0f32; 2];  // Store previous energy value for each channel
         for band in 0..MAX_BANDS {
             for channel in 0..dec.channels as usize {
                 let block = &mut dec.blocks[channel];
 
+                // Skip energy decoding for bands outside the valid range
                 if !dec.band_range.contains(&band) {
                     block.energy[band] = 0.0;
-
                     continue;
                 }
 
+                // Select decoding method based on available bits
                 let available = range_dec.available();
                 let value = if range_dec.available() >= 15 {
-                    // decode using a Laplace distribution
+                    // Decode using Laplace distribution, higher precision
                     let idx = band.min(20) << 1;
                     range_dec.laplace((model[idx] << 7) as usize, (model[idx + 1] << 6) as isize)
                 } else if available >= 2 {
+                    // Decode using simple entropy coding
                     let v = range_dec.icdf(&TAPSET_MODEL_DICT) as isize;
                     (v >> 1) ^ -(v & 1)
                 } else if available >= 1 {
+                    // Decode using single bit
                     -(if range_dec.logp(1) { 1 } else { 0 })
                 } else {
                     -1
                 } as f32;
 
+                // Calculate new energy value and apply prediction and smoothing
                 block.energy[band] =
                     -9.0f32.max(block.energy[band] * alpha + prev[channel] + value);
 
+                // Update prediction value
                 prev[channel] += beta * value;
             }
         }

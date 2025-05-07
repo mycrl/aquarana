@@ -3,10 +3,12 @@ pub mod entropy;
 pub mod toc;
 
 use bytes::Buf;
-use celt::{CeltFrameDecodeError, CeltFrameDecoder};
-use entropy::RangeCodingDecoder;
 
-use self::toc::{EncodeMode, FrameCode, TableOfContents};
+use self::{
+    celt::{CeltFrameDecodeError, CeltFrameDecoder},
+    entropy::RangeCodingDecoder,
+    toc::{EncodeMode, FrameCode, TableOfContents},
+};
 
 #[derive(Debug)]
 pub struct OpusFrame {}

@@ -5,18 +5,16 @@ mod time_frequency_change;
 
 use std::ops::Range;
 
-use crate::opus::entropy::CeltRangeCoding;
+use super::{
+    entropy::{CeltRangeCoding, RangeCodingDecoder},
+    toc::{Bandwidth, Channels, EncodeMode, TableOfContents},
+};
 
 use self::{
     bit_alloc::{BitAlloc, Spread},
     coarse_energy::CoarseEnergy,
     post_filter::PostFilter,
     time_frequency_change::TimeFrequencyChange,
-};
-
-use super::{
-    entropy::RangeCodingDecoder,
-    toc::{Bandwidth, Channels, EncodeMode, TableOfContents},
 };
 
 pub const MAX_BANDS: usize = 21;
@@ -56,11 +54,11 @@ pub struct CeltFrameDecoder {
     transient: bool,
     channels: Channels,
     blocks: [CeltBlock; 2],
-    time_frequency_change: [i8; MAX_BANDS],
+    time_frequency_change: [i32; MAX_BANDS],
     spread: Option<Spread>,
     caps: [i32; MAX_BANDS],
-    alloc_trim: usize,
-    anticollapse_needed: usize,
+    alloc_trim: i32,
+    anticollapse_needed: i32,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -151,7 +149,7 @@ impl CeltFrameDecoder {
         TimeFrequencyChange::decode(self, range_dec);
 
         // bit alloc
-        BitAlloc::decode(toc, self, range_dec);
+        BitAlloc::decode(self, range_dec);
 
         Ok(())
     }
